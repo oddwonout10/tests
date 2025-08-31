@@ -21,6 +21,14 @@ const testSelect = qs('#test-select');
     if (!j.ok) throw new Error(j.error || 'Config failed');
 
     testSelect.innerHTML = '';
+    if (!Array.isArray(j.tests) || j.tests.length === 0) {
+      const opt = document.createElement('option');
+      opt.value = '';
+      opt.textContent = 'No active tests';
+      testSelect.appendChild(opt);
+      startForm.querySelector('button[type="submit"]').disabled = true;
+      return;
+    }
     j.tests.forEach(t => {
       const opt = document.createElement('option');
       opt.value = t.test_id;
