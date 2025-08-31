@@ -45,7 +45,7 @@ const params = new URLSearchParams(window.location.search);
 if (params.get("submitted") === "1") {
   startSection.classList.add("hidden");
   testSection.classList.remove("hidden");
-  window.scrollTo({ top: 0, behavior: 'auto' }); // see note #2
+  window.scrollTo({ top: 0, behavior: 'auto' }); // or 'smooth'
 
   const late = params.get("late") === "Y";
   const name = params.get("name") || "Student";
