@@ -263,7 +263,20 @@ async function post(action, body){
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: form.toString()
     });
-    return await r.json();
+
+    const ct = r.headers.get('content-type') || '';
+    const raw = await r.text();
+
+    if (!ct.includes('application/json')) {
+      // Show first 120 chars so we see if it's %PDF-1.4, HTML, etc.
+      return { ok:false, error: `Backend returned non-JSON (${ct}): ${raw.slice(0,120)}` };
+    }
+
+    try {
+      return JSON.parse(raw);
+    } catch (e) {
+      return { ok:false, error: `JSON parse failed: ${e.message}. First bytes: ${raw.slice(0,120)}` };
+    }
   } catch(e){
     return { ok:false, error: e.message };
   }
