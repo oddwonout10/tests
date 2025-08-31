@@ -74,9 +74,10 @@ window.addEventListener('paste', e => e.preventDefault());
 startForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   const fd = new FormData(startForm);
-  testCtx.name = fd.get('name').trim();
-  testCtx.email = fd.get('email').trim();
+  testCtx.name = (fd.get('name') || '').trim();
+  testCtx.email = (fd.get('email') || '').trim();
   testCtx.test_id = fd.get('test_id');
+  if (!testCtx.test_id) { alert('Please select a test'); return; }
   testCtx.code = fd.get('code').trim();
 
   const ip = await getIPSafe();
@@ -121,7 +122,12 @@ function renderQuestions(questions){
       img.src = `${window.BACKEND_URL}?action=image&id=${encodeURIComponent(q.imageId)}&t=${t}`;
       img.alt = `Image for Q${q.qno}`;
       box.appendChild(img);
-
+      img.onerror = () => {
+        const note = document.createElement('div');
+        note.className = 'img-error';
+        note.textContent = 'Image unavailable.';
+        box.appendChild(note);  
+      };
       // (optional) clickable debug link below the image
       const dbg = document.createElement('a');
       dbg.href = img.src;
@@ -201,6 +207,7 @@ async function forceSubmit(msg){
   statusEl.textContent = res.error || "Submission failed";
   submitBtn.disabled = false;
   isSubmitting = false;
+  document.querySelectorAll('input[type="radio"]').forEach(el => el.disabled = false);
   return;
 }
 
