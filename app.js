@@ -4,9 +4,34 @@ const startSection = qs('#start-section');
 const testSection = qs('#test-section');
 const qWrap = qs('#questions');
 const timerEl = qs('#timer');
-const titleEl = qs('#test-title');
+const titleEl = qs('#test-heading');
 const submitBtn = qs('#submit-btn');
 const statusEl = qs('#status');
+
+// Populate the test dropdown from backend
+const testSelect = qs('#test-select');
+(async function initTests(){
+  try {
+    const r = await fetch(window.BACKEND_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ action: 'config' })
+    });
+    const j = await r.json();
+    if (!j.ok) throw new Error(j.error || 'Config failed');
+
+    testSelect.innerHTML = '';
+    j.tests.forEach(t => {
+      const opt = document.createElement('option');
+      opt.value = t.test_id;
+      opt.textContent = `${t.title} (${t.test_id})`;
+      testSelect.appendChild(opt);
+    });
+  } catch (e) {
+    console.error(e);
+    alert('Could not load tests. Please try again later.');
+  }
+})();
 
 // Success screen on reload
 const params = new URLSearchParams(window.location.search);
@@ -59,7 +84,7 @@ startForm.addEventListener('submit', async (e) => {
   startSection.classList.add('hidden');
   testSection.classList.remove('hidden');
 
-  titleEl.textContent = res.title;
+  titleEl.textContent = `${res.title} (${res.test_id}, ${res.time_limit_min} min)`;
   remaining = res.remainingSec;
   testCtx.questions = res.questions;
   renderQuestions(res.questions);
@@ -67,7 +92,6 @@ startForm.addEventListener('submit', async (e) => {
 });
 
 function renderQuestions(questions){
-  const qWrap = document.querySelector('#questions');
   qWrap.innerHTML = '';
 
   questions.forEach(q => {
@@ -168,9 +192,9 @@ async function forceSubmit(msg){
 const params = new URLSearchParams();
 params.set("submitted", "1");
 params.set("late", res.late_flag === "Y" ? "Y" : "N");
-params.set("name", encodeURIComponent(testCtx.name || "Student"));
+params.set("name", testCtx.name || "Student");
 window.location.href = `${window.location.pathname}?${params.toString()}`;
-  statusEl.textContent = res.message + (res.late_flag==='Y' ? ' (Recorded as late)' : '');
+  return;
 }
 
 function collectAnswers(){
