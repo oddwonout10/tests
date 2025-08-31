@@ -184,6 +184,8 @@ async function forceSubmit(msg){
   statusEl.textContent = msg;
   submitBtn.disabled = true;
   const answers = collectAnswers();
+  // prevent edits while submitting
+  document.querySelectorAll('input[type="radio"]').forEach(el => el.disabled = true);
   const ip = await getIPSafe();
   const res = await post('submit', {
     name: testCtx.name,
