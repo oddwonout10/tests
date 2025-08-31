@@ -13,34 +13,45 @@
   </header>
 
   <main class="container">
+    <noscript>
+      <p class="note">JavaScript is required to take this test. Please enable it and reload.</p>
+    </noscript>
+
     <section id="start-section">
       <h1>Start your test</h1>
-      <form id="start-form">
-        <label>Name <input required name="name" /></label>
-        <label>Email <input required name="email" type="email" /></label>
-        <label>Test <select required name="test_id" id="test-select">
-          <option value="T1">T1</option>
-          <option value="T2">T2</option>
-          <option value="T3">T3</option>
-          <option value="T4">T4</option>
-          <option value="T5">T5</option>
-          <option value="T6">T6</option>
-        </select></label>
-        <label>Access code <input
+      <form id="start-form" autocomplete="on">
+        <label>
+          Name
+          <input required name="name" autocomplete="name" />
+        </label>
+        <label>
+          Email
+          <input required name="email" type="email" autocomplete="email" />
+        </label>
+        <label>
+          Test
+          <select required name="test_id" id="test-select">
+            <option value="" selected disabled>Loading tests…</option>
+          </select>
+        </label>
+        <label>
+          Access code
+          <input
             name="code"
             required
-              inputmode="numeric"
+            inputmode="numeric"
             maxlength="6"
             pattern="[0-9]{6}"
             oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,6)"
-        /></label>
+          />
+        </label>
         <button type="submit">Start</button>
       </form>
       <p class="note">All questions appear at once. You can change answers until you submit or time runs out.</p>
     </section>
 
     <section id="test-section" class="hidden">
-      <h2 id="test-title"></h2>
+      <h2 id="test-heading"></h2>
       <div id="questions"></div>
       <button id="submit-btn" class="primary">Submit</button>
       <p id="status" class="status"></p>
