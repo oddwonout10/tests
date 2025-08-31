@@ -41,21 +41,34 @@ const testSelect = qs('#test-select');
   }
 })();
 
-// Success screen on reload
 const params = new URLSearchParams(window.location.search);
 if (params.get("submitted") === "1") {
   startSection.classList.add("hidden");
   testSection.classList.remove("hidden");
-  window.scrollTo({ top: 0, behavior: 'instant' }); // or 'smooth'
+  window.scrollTo({ top: 0, behavior: 'auto' }); // see note #2
 
   const late = params.get("late") === "Y";
   const name = params.get("name") || "Student";
 
-  testSection.innerHTML = `
-    <h2>✅ Test submitted</h2>
-    <p>Thanks, ${name}. Your responses have been recorded.</p>
-    ${late ? `<p><strong>Note:</strong> Marked as late on the server.</p>` : ""}
-  `;
+  // Clear and build elements safely
+  testSection.innerHTML = "";
+  const h = document.createElement("h2");
+  h.textContent = "✅ Test submitted";
+
+  const p1 = document.createElement("p");
+  p1.textContent = `Thanks, ${name}. Your responses have been recorded.`;
+
+  testSection.appendChild(h);
+  testSection.appendChild(p1);
+
+  if (late) {
+    const p2 = document.createElement("p");
+    const strong = document.createElement("strong");
+    strong.textContent = "Note:";
+    p2.appendChild(strong);
+    p2.appendChild(document.createTextNode(" Marked as late on the server."));
+    testSection.appendChild(p2);
+  }
 
   // Clean up the URL so refresh doesn’t keep showing success
   history.replaceState({}, "", window.location.pathname);
