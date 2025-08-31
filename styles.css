@@ -18,3 +18,6 @@ button.primary { margin-top:16px; }
 .option input { width:auto; }
 .status { margin-top:12px; color:#555; }
 .note { color:#555; }
+.timer.warn { font-weight: 700; }
+.timer.flash { animation: pulse 0.5s linear; }
+@keyframes pulse { 0%{opacity:1} 50%{opacity:0.4} 100%{opacity:1} }

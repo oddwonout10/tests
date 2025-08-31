@@ -178,9 +178,17 @@ function renderQuestions(questions){
 
 function startTimer(){
   updateTimerUI();
+  let flashOn = false;
   tickHandle = setInterval(()=>{
     remaining = Math.max(0, remaining-1);
     updateTimerUI();
+
+    // Flash the timer when <= 30s
+    if (remaining <= 30) {
+      flashOn = !flashOn;
+      timerEl.classList.toggle('flash', flashOn);
+    }
+
     if (remaining === 0){
       clearInterval(tickHandle);
       forceSubmit('Time is up. Your answers are being submitted.');
