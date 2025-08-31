@@ -46,6 +46,7 @@ const params = new URLSearchParams(window.location.search);
 if (params.get("submitted") === "1") {
   startSection.classList.add("hidden");
   testSection.classList.remove("hidden");
+  window.scrollTo({ top: 0, behavior: 'instant' }); // or 'smooth'
 
   const late = params.get("late") === "Y";
   const name = params.get("name") || "Student";
@@ -78,7 +79,7 @@ startForm.addEventListener('submit', async (e) => {
   testCtx.email = (fd.get('email') || '').trim();
   testCtx.test_id = fd.get('test_id');
   if (!testCtx.test_id) { alert('Please select a test'); return; }
-  testCtx.code = fd.get('code').trim();
+  testCtx.code = (fd.get('code') || '').trim();
 
   const ip = await getIPSafe();
   const res = await post('start', {
@@ -178,7 +179,11 @@ function updateTimerUI(){
   const m = Math.floor(remaining/60).toString().padStart(2,'0');
   const s = (remaining%60).toString().padStart(2,'0');
   timerEl.textContent = `${m}:${s}`;
-  if (remaining <= 30) timerEl.classList.add('warn');
+  if (remaining <= 30) {
+    timerEl.classList.add('warn');
+} else {
+  timerEl.classList.remove('warn');
+}    
 }
 
 submitBtn.addEventListener('click', ()=> forceSubmit('Submitting your answers…'));
