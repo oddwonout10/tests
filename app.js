@@ -75,12 +75,12 @@ function renderQuestions(questions){
     h.className = 'qtext';
     h.textContent = `Q${q.qno}. ${q.text}`;
     box.appendChild(h);
-    if (q.image){
-      const img = document.createElement('img');
-      img.className = 'qimg';
-      img.src = q.image; // base64 data URL
-      box.appendChild(img);
-    }
+    if (q.imageId){
+  const img = document.createElement('img');
+  img.className = 'qimg';
+  img.src = `${window.BACKEND_URL}?action=image&id=${encodeURIComponent(q.imageId)}`;
+  box.appendChild(img);
+}
     q.options.forEach((opt, idx) => {
       const label = ['A','B','C','D','E'][idx];
       const row = document.createElement('label');

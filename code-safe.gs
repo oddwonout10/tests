@@ -46,50 +46,14 @@ function codesSheet(testId){ return SH('Codes_'+testId); }
 function responsesSheet(testId){ return SH('Responses_'+testId); }
 
 function getTestJson(testId) {
-  return readJsonRow('Published_JSON', testId);
+  const text = PropertiesService.getDocumentProperties().getProperty('TEST_JSON_'+testId);
+  if (!text) throw new Error('No published JSON for test '+testId+'. Run "Import From Google Doc" then "Publish Test JSON".');
+  return JSON.parse(text);
 }
 
 function setTestJson(testId, obj) {
-  writeJsonRow('Published_JSON', testId, obj);
+  PropertiesService.getDocumentProperties().setProperty('TEST_JSON_'+testId, JSON.stringify(obj));
 }
-
-function jsonSheet(name) {
-  return S().getSheetByName(name) || S().insertSheet(name);
-}
-
-function writeJsonRow(sheetName, testId, obj) {
-  const sh = jsonSheet(sheetName);
-  if (sh.getLastRow() === 0) sh.appendRow(['test_id','json']);
-  const data = sh.getDataRange().getValues();
-  const idx = { test_id: 0, json: 1 };
-  let row = -1;
-  for (let r=1; r<data.length; r++) {
-    if ((data[r][idx.test_id]||'').toString().trim() === testId) { row = r+1; break; }
-  }
-  const payload = JSON.stringify(obj);
-  if (row < 0) {
-    sh.appendRow([testId, payload]);
-  } else {
-    sh.getRange(row, idx.json+1).setValue(payload);
-  }
-}
-
-function readJsonRow(sheetName, testId) {
-  const sh = jsonSheet(sheetName);
-  const data = sh.getDataRange().getValues();
-  if (data.length < 2) throw new Error('No data in '+sheetName);
-  const idx = { test_id: 0, json: 1 };
-  for (let r=1; r<data.length; r++) {
-    if ((data[r][idx.test_id]||'').toString().trim() === testId) {
-      const raw = data[r][idx.json];
-      if (!raw) throw new Error('Empty JSON for '+testId+' in '+sheetName);
-      return JSON.parse(raw);
-    }
-  }
-  throw new Error('Not found: '+testId+' in '+sheetName);
-}
-
-
 
 // ===== Admin menu =====
 function onOpen(){
@@ -154,34 +118,34 @@ function importFromGoogleDoc(testId){
   const questions=[];
   let cursor=0, qno=0;
   while(cursor < lines.length){
-    if(!/^Q\d+\./.test(lines[cursor])) { cursor++; continue; }
-    const qHeader = lines[cursor++]; qno++;
+    if(!/^Q\d+\./.test(lines[cursor])){ cursor++; continue; }
+    const qHeader = lines[cursor++];
+    qno++;
     const qText = qHeader.replace(/^Q\d+\.\s*/,'').trim();
     let imgData = '';
     if (cursor<lines.length && /^IMG:/.test(lines[cursor])){
       const fileId = lines[cursor].replace(/^IMG:\s*/,'').trim();
-      try { imgData = driveFileToDataUrl(fileId); } catch(err){ imgData = ''; }
+      try { imgData = driveFileToDataUrl(fileId); } catch(err){ imgData=''; }
       cursor++;
     }
     const opts=[];
     for (let k=0; k<5 && cursor<lines.length; k++){
       const m = lines[cursor].match(/^[A-E]\)\s*(.*)$/);
-      if (!m) break;
+      if(!m) break;
       opts.push(m[1]);
       cursor++;
     }
-    if (opts.length !== 5) throw new Error('Question '+qno+' does not have 5 options.');
+    if (opts.length!==5) throw new Error('Question '+qno+' does not have 5 options.');
     questions.push({ qno, text:qText, image:imgData, options:opts });
   }
 
-  // Write to Imported_JSON sheet (instead of Properties)
-  writeJsonRow('Imported_JSON', testId, { title: titleLine, questions });
+  PropertiesService.getDocumentProperties().setProperty('IMPORTED_'+testId, JSON.stringify({ title:titleLine, questions }));
 }
 
 function publishTestJson(testId){
-  // Read from Imported_JSON and copy to Published_JSON
-  const imported = readJsonRow('Imported_JSON', testId);
-  writeJsonRow('Published_JSON', testId, imported);
+  const raw = PropertiesService.getDocumentProperties().getProperty('IMPORTED_'+testId);
+  if (!raw) throw new Error('Nothing imported for '+testId);
+  setTestJson(testId, JSON.parse(raw));
 }
 
 function driveFileToDataUrl(fileId){
@@ -191,20 +155,6 @@ function driveFileToDataUrl(fileId){
   const b64 = Utilities.base64Encode(blob.getBytes());
   return 'data:'+mime+';base64,'+b64;
 }
-
-function clearOldProperties() {
-  const p = PropertiesService.getDocumentProperties();
-  const all = p.getProperties();
-  let n=0;
-  Object.keys(all).forEach(k => {
-    if (k.startsWith('IMPORTED_') || k.startsWith('TEST_JSON_')) {
-      p.deleteProperty(k);
-      n++;
-    }
-  });
-  Logger.log('Deleted '+n+' old properties.');
-}
-
 
 // ===== Rate limiting (best-effort using client IP from frontend) =====
 function checkRateLimit(ip, maxPer10){
@@ -439,23 +389,4 @@ function rebuildStudentIndex(){
   }
   if (rows.length===1) rows.push(['','','']);
   sh.getRange(1,1,rows.length,rows[0].length).setValues(rows);
-}
-
-function normalizeCodes(testId){
-  const sh = codesSheet(testId);
-  if (sh.getLastRow() <= 1) return;
-  // Force text for the whole column
-  sh.getRange(1,1,sh.getMaxRows(),1).setNumberFormat('@');
-
-  const last = sh.getLastRow();
-  const rng = sh.getRange(2,1,last-1,1);
-  const vals = rng.getValues();
-
-  for (let i=0; i<vals.length; i++){
-    const raw = vals[i][0];
-    if (!raw) continue;
-    const s = String(raw).replace(/[^0-9]/g,'');
-    vals[i][0] = "'"+s.padStart(6, '0');  // write as text with leading zeros
-  }
-  rng.setValues(vals);
 }
