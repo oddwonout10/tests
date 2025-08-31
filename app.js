@@ -67,34 +67,58 @@ startForm.addEventListener('submit', async (e) => {
 });
 
 function renderQuestions(questions){
+  const qWrap = document.querySelector('#questions');
   qWrap.innerHTML = '';
+
   questions.forEach(q => {
     const box = document.createElement('div');
     box.className = 'question';
+
     const h = document.createElement('div');
     h.className = 'qtext';
     h.textContent = `Q${q.qno}. ${q.text}`;
     box.appendChild(h);
-    if (q.imageId){
-  const img = document.createElement('img');
-  img.className = 'qimg';
-  img.src = `${window.BACKEND_URL}?action=image&id=${encodeURIComponent(q.imageId)}`;
-  box.appendChild(img);
-}
-    q.options.forEach((opt, idx) => {
+
+    // Show image via Apps Script endpoint
+    if (q.imageId) {
+      const img = document.createElement('img');
+      img.className = 'qimg';
+      // cache-buster helps when you just redeployed the web app
+      const t = Date.now();
+      img.src = `${window.BACKEND_URL}?action=image&id=${encodeURIComponent(q.imageId)}&t=${t}`;
+      img.alt = `Image for Q${q.qno}`;
+      box.appendChild(img);
+
+      // (optional) clickable debug link below the image
+      const dbg = document.createElement('a');
+      dbg.href = img.src;
+      dbg.target = "_blank";
+      dbg.textContent = "Open image";
+      dbg.style.display = "inline-block";
+      dbg.style.fontSize = "12px";
+      dbg.style.color = "#555";
+      box.appendChild(dbg);
+    }
+
+    // Five options A–E
+    (q.options || []).forEach((opt, idx) => {
       const label = ['A','B','C','D','E'][idx];
       const row = document.createElement('label');
-      row.className='option';
+      row.className = 'option';
+
       const input = document.createElement('input');
       input.type = 'radio';
-      input.name = 'q_'+q.qno;
+      input.name = 'q_' + q.qno;
       input.value = label;
-      row.appendChild(input);
+
       const span = document.createElement('span');
       span.textContent = `${label}) ${opt}`;
+
+      row.appendChild(input);
       row.appendChild(span);
       box.appendChild(row);
     });
+
     qWrap.appendChild(box);
   });
 }
