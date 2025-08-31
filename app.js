@@ -55,6 +55,7 @@ if (params.get("submitted") === "1") {
 let remaining = 0;
 let tickHandle = null;
 let testCtx = { test_id: '', code: '', name: '', email: '', questions: [] };
+let isSubmitting = false;
 
 // Light deterrents
 window.addEventListener('contextmenu', e => e.preventDefault());
@@ -86,8 +87,8 @@ startForm.addEventListener('submit', async (e) => {
 
   titleEl.textContent = `${res.title} (${res.test_id}, ${res.time_limit_min} min)`;
   remaining = res.remainingSec;
-  testCtx.questions = res.questions;
-  renderQuestions(res.questions);
+  testCtx.questions = Array.isArray(res.questions) ? res.questions : [];
+  renderQuestions(testCtx.questions);
   startTimer();
 });
 
@@ -169,6 +170,9 @@ function updateTimerUI(){
 submitBtn.addEventListener('click', ()=> forceSubmit('Submitting your answers…'));
 
 async function forceSubmit(msg){
+  if (isSubmitting) return;
+  isSubmitting = true;
+  if (tickHandle) { clearInterval(tickHandle); tickHandle = null; }
   statusEl.textContent = msg;
   submitBtn.disabled = true;
   const answers = collectAnswers();
@@ -185,6 +189,8 @@ async function forceSubmit(msg){
   });
   if (!res.ok) {
   statusEl.textContent = res.error || "Submission failed";
+  submitBtn.disabled = false;
+  isSubmitting = false;
   return;
 }
 
