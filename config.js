@@ -1,2 +1,2 @@
 // Replace with your Apps Script Web App URL
-window.BACKEND_URL = 'https://script.google.com/macros/s/AKfycbzuZXPI9tG_onSOhiBEy8avwKyTMJXZq_9UFB8wKAM4KPcxF-4djyqD_gaKeOgdy63W/exec';
+window.BACKEND_URL = 'https://script.google.com/macros/s/AKfycbwNi2WO-M3sx8Lmc0RlUB6nLznJ2OfLFNcWG5Ru1P5pTzFzjBs-yu8sfCtJqEYcQzZXGQ/exec';
