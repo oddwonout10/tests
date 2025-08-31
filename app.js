@@ -205,11 +205,11 @@ async function forceSubmit(msg){
 }
 
 // Redirect to a clean success page on the same path
-const params = new URLSearchParams();
-params.set("submitted", "1");
-params.set("late", res.late_flag === "Y" ? "Y" : "N");
-params.set("name", testCtx.name || "Student");
-window.location.href = `${window.location.pathname}?${params.toString()}`;
+const next = new URLSearchParams();
+next.set("submitted", "1");
+next.set("late", res.late_flag === "Y" ? "Y" : "N");
+next.set("name", testCtx.name || "Student");
+window.location.href = `${window.location.pathname}?${next.toString()}`;
   return;
 }
 
