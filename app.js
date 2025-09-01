@@ -144,13 +144,15 @@ function renderQuestions(questions){
       if (j && j.ok && j.b64 && j.mime) {
         img.src = `data:${j.mime};base64,${j.b64}`;
       } else {
+        console.warn('image_b64 error for', q.imageId, j);
         const note = document.createElement('div');
         note.className = 'img-error';
         note.textContent = 'Image unavailable.';
         holder.appendChild(note);
       }
     })
-    .catch(() => {
+    .catch((err) => {
+      console.error('image_b64 fetch failed for', q.imageId, err);
       const note = document.createElement('div');
       note.className = 'img-error';
       note.textContent = 'Image unavailable.';
