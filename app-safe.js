@@ -4,24 +4,71 @@ const startSection = qs('#start-section');
 const testSection = qs('#test-section');
 const qWrap = qs('#questions');
 const timerEl = qs('#timer');
-const titleEl = qs('#test-title');
+const titleEl = qs('#test-heading');
 const submitBtn = qs('#submit-btn');
 const statusEl = qs('#status');
 
-// Success screen on reload
+// Populate the test dropdown from backend
+const testSelect = qs('#test-select');
+(async function initTests(){
+  try {
+    const r = await fetch(window.BACKEND_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ action: 'config' })
+    });
+    const j = await r.json();
+    if (!j.ok) throw new Error(j.error || 'Config failed');
+
+    testSelect.innerHTML = '';
+    if (!Array.isArray(j.tests) || j.tests.length === 0) {
+      const opt = document.createElement('option');
+      opt.value = '';
+      opt.textContent = 'No active tests';
+      testSelect.appendChild(opt);
+      startForm.querySelector('button[type="submit"]').disabled = true;
+      return;
+    }
+    j.tests.forEach(t => {
+      const opt = document.createElement('option');
+      opt.value = t.test_id;
+      opt.textContent = `${t.title} (${t.test_id})`;
+      testSelect.appendChild(opt);
+    });
+  } catch (e) {
+    console.error(e);
+    alert('Could not load tests. Please try again later.');
+  }
+})();
+
 const params = new URLSearchParams(window.location.search);
 if (params.get("submitted") === "1") {
   startSection.classList.add("hidden");
   testSection.classList.remove("hidden");
+  window.scrollTo({ top: 0, behavior: 'auto' }); // or 'smooth'
 
   const late = params.get("late") === "Y";
   const name = params.get("name") || "Student";
 
-  testSection.innerHTML = `
-    <h2>✅ Test submitted</h2>
-    <p>Thanks, ${name}. Your responses have been recorded.</p>
-    ${late ? `<p><strong>Note:</strong> Marked as late on the server.</p>` : ""}
-  `;
+  // Clear and build elements safely
+  testSection.innerHTML = "";
+  const h = document.createElement("h2");
+  h.textContent = "✅ Test submitted";
+
+  const p1 = document.createElement("p");
+  p1.textContent = `Thanks, ${name}. Your responses have been recorded.`;
+
+  testSection.appendChild(h);
+  testSection.appendChild(p1);
+
+  if (late) {
+    const p2 = document.createElement("p");
+    const strong = document.createElement("strong");
+    strong.textContent = "Note:";
+    p2.appendChild(strong);
+    p2.appendChild(document.createTextNode(" Marked as late on the server."));
+    testSection.appendChild(p2);
+  }
 
   // Clean up the URL so refresh doesn’t keep showing success
   history.replaceState({}, "", window.location.pathname);
@@ -30,6 +77,7 @@ if (params.get("submitted") === "1") {
 let remaining = 0;
 let tickHandle = null;
 let testCtx = { test_id: '', code: '', name: '', email: '', questions: [] };
+let isSubmitting = false;
 
 // Light deterrents
 window.addEventListener('contextmenu', e => e.preventDefault());
@@ -40,10 +88,11 @@ window.addEventListener('paste', e => e.preventDefault());
 startForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   const fd = new FormData(startForm);
-  testCtx.name = fd.get('name').trim();
-  testCtx.email = fd.get('email').trim();
+  testCtx.name = (fd.get('name') || '').trim();
+  testCtx.email = (fd.get('email') || '').trim();
   testCtx.test_id = fd.get('test_id');
-  testCtx.code = fd.get('code').trim();
+  if (!testCtx.test_id) { alert('Please select a test'); return; }
+  testCtx.code = (fd.get('code') || '').trim();
 
   const ip = await getIPSafe();
   const res = await post('start', {
@@ -59,51 +108,94 @@ startForm.addEventListener('submit', async (e) => {
   startSection.classList.add('hidden');
   testSection.classList.remove('hidden');
 
-  titleEl.textContent = res.title;
+  titleEl.textContent = `${res.title} (${res.test_id}, ${res.time_limit_min} min)`;
   remaining = res.remainingSec;
-  testCtx.questions = res.questions;
-  renderQuestions(res.questions);
+  testCtx.questions = Array.isArray(res.questions) ? res.questions : [];
+  renderQuestions(testCtx.questions);
   startTimer();
 });
 
 function renderQuestions(questions){
   qWrap.innerHTML = '';
+
   questions.forEach(q => {
     const box = document.createElement('div');
     box.className = 'question';
+
     const h = document.createElement('div');
     h.className = 'qtext';
     h.textContent = `Q${q.qno}. ${q.text}`;
     box.appendChild(h);
-    if (q.image){
-      const img = document.createElement('img');
-      img.className = 'qimg';
-      img.src = q.image; // base64 data URL
-      box.appendChild(img);
-    }
-    q.options.forEach((opt, idx) => {
+
+    // Show image via Apps Script endpoint
+    if (q.imageId) {
+  const holder = document.createElement('div');
+  holder.className = 'qimg-holder';
+  const img = document.createElement('img');
+  img.className = 'qimg';
+  img.alt = `Image for Q${q.qno}`;
+  holder.appendChild(img);
+  box.appendChild(holder);
+
+  // fetch base64 JSON and set as data URL
+  fetch(`${window.BACKEND_URL}?action=image_b64&id=${encodeURIComponent(q.imageId)}&t=${Date.now()}`)
+    .then(r => r.json())
+    .then(j => {
+      if (j && j.ok && j.b64 && j.mime) {
+        img.src = `data:${j.mime};base64,${j.b64}`;
+      } else {
+        console.warn('image_b64 error for', q.imageId, j);
+        const note = document.createElement('div');
+        note.className = 'img-error';
+        note.textContent = 'Image unavailable.';
+        holder.appendChild(note);
+      }
+    })
+    .catch((err) => {
+      console.error('image_b64 fetch failed for', q.imageId, err);
+      const note = document.createElement('div');
+      note.className = 'img-error';
+      note.textContent = 'Image unavailable.';
+      holder.appendChild(note);
+    });
+}
+
+    // Five options A–E
+    (q.options || []).forEach((opt, idx) => {
       const label = ['A','B','C','D','E'][idx];
       const row = document.createElement('label');
-      row.className='option';
+      row.className = 'option';
+
       const input = document.createElement('input');
       input.type = 'radio';
-      input.name = 'q_'+q.qno;
+      input.name = 'q_' + q.qno;
       input.value = label;
-      row.appendChild(input);
+
       const span = document.createElement('span');
       span.textContent = `${label}) ${opt}`;
+
+      row.appendChild(input);
       row.appendChild(span);
       box.appendChild(row);
     });
+
     qWrap.appendChild(box);
   });
 }
 
 function startTimer(){
   updateTimerUI();
+  let flashOn = false;
   tickHandle = setInterval(()=>{
     remaining = Math.max(0, remaining-1);
     updateTimerUI();
+
+    // Flash the timer when <= 30s
+    if (remaining <= 30) {
+      flashOn = !flashOn;
+      timerEl.classList.toggle('flash', flashOn);
+    }
+
     if (remaining === 0){
       clearInterval(tickHandle);
       forceSubmit('Time is up. Your answers are being submitted.');
@@ -115,15 +207,24 @@ function updateTimerUI(){
   const m = Math.floor(remaining/60).toString().padStart(2,'0');
   const s = (remaining%60).toString().padStart(2,'0');
   timerEl.textContent = `${m}:${s}`;
-  if (remaining <= 30) timerEl.classList.add('warn');
+  if (remaining <= 30) {
+    timerEl.classList.add('warn');
+} else {
+  timerEl.classList.remove('warn');
+}    
 }
 
 submitBtn.addEventListener('click', ()=> forceSubmit('Submitting your answers…'));
 
 async function forceSubmit(msg){
+  if (isSubmitting) return;
+  isSubmitting = true;
+  if (tickHandle) { clearInterval(tickHandle); tickHandle = null; }
   statusEl.textContent = msg;
   submitBtn.disabled = true;
   const answers = collectAnswers();
+  // prevent edits while submitting
+  document.querySelectorAll('input[type="radio"]').forEach(el => el.disabled = true);
   const ip = await getIPSafe();
   const res = await post('submit', {
     name: testCtx.name,
@@ -137,16 +238,19 @@ async function forceSubmit(msg){
   });
   if (!res.ok) {
   statusEl.textContent = res.error || "Submission failed";
+  submitBtn.disabled = false;
+  isSubmitting = false;
+  document.querySelectorAll('input[type="radio"]').forEach(el => el.disabled = false);
   return;
 }
 
 // Redirect to a clean success page on the same path
-const params = new URLSearchParams();
-params.set("submitted", "1");
-params.set("late", res.late_flag === "Y" ? "Y" : "N");
-params.set("name", encodeURIComponent(testCtx.name || "Student"));
-window.location.href = `${window.location.pathname}?${params.toString()}`;
-  statusEl.textContent = res.message + (res.late_flag==='Y' ? ' (Recorded as late)' : '');
+const next = new URLSearchParams();
+next.set("submitted", "1");
+next.set("late", res.late_flag === "Y" ? "Y" : "N");
+next.set("name", testCtx.name || "Student");
+window.location.href = `${window.location.pathname}?${next.toString()}`;
+  return;
 }
 
 function collectAnswers(){
@@ -166,7 +270,20 @@ async function post(action, body){
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: form.toString()
     });
-    return await r.json();
+
+    const ct = r.headers.get('content-type') || '';
+    const raw = await r.text();
+
+    if (!ct.includes('application/json')) {
+      // Show first 120 chars so we see if it's %PDF-1.4, HTML, etc.
+      return { ok:false, error: `Backend returned non-JSON (${ct}): ${raw.slice(0,120)}` };
+    }
+
+    try {
+      return JSON.parse(raw);
+    } catch (e) {
+      return { ok:false, error: `JSON parse failed: ${e.message}. First bytes: ${raw.slice(0,120)}` };
+    }
   } catch(e){
     return { ok:false, error: e.message };
   }
