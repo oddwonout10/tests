@@ -129,29 +129,34 @@ function renderQuestions(questions){
 
     // Show image via Apps Script endpoint
     if (q.imageId) {
-      const img = document.createElement('img');
-      img.className = 'qimg';
-      // cache-buster helps when you just redeployed the web app
-      const t = Date.now();
-      img.src = `${window.BACKEND_URL}?action=image&id=${encodeURIComponent(q.imageId)}&t=${t}`;
-      img.alt = `Image for Q${q.qno}`;
-      box.appendChild(img);
-      img.onerror = () => {
+  const holder = document.createElement('div');
+  holder.className = 'qimg-holder';
+  const img = document.createElement('img');
+  img.className = 'qimg';
+  img.alt = `Image for Q${q.qno}`;
+  holder.appendChild(img);
+  box.appendChild(holder);
+
+  // fetch base64 JSON and set as data URL
+  fetch(`${window.BACKEND_URL}?action=image_b64&id=${encodeURIComponent(q.imageId)}&t=${Date.now()}`)
+    .then(r => r.json())
+    .then(j => {
+      if (j && j.ok && j.b64 && j.mime) {
+        img.src = `data:${j.mime};base64,${j.b64}`;
+      } else {
         const note = document.createElement('div');
         note.className = 'img-error';
         note.textContent = 'Image unavailable.';
-        box.appendChild(note);  
-      };
-      // (optional) clickable debug link below the image
-      const dbg = document.createElement('a');
-      dbg.href = img.src;
-      dbg.target = "_blank";
-      dbg.textContent = "Open image";
-      dbg.style.display = "inline-block";
-      dbg.style.fontSize = "12px";
-      dbg.style.color = "#555";
-      box.appendChild(dbg);
-    }
+        holder.appendChild(note);
+      }
+    })
+    .catch(() => {
+      const note = document.createElement('div');
+      note.className = 'img-error';
+      note.textContent = 'Image unavailable.';
+      holder.appendChild(note);
+    });
+}
 
     // Five options A–E
     (q.options || []).forEach((opt, idx) => {
